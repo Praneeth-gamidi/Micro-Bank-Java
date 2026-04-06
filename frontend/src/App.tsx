@@ -26,17 +26,21 @@ export default function App() {
   }
 
   return (
-    <div className="app">
-      <div className="brand">🏦 Micro Bank</div>
-      {page === "login" && (
-        <Login onLogin={handleAuth} goToRegister={() => setPage("register")} />
-      )}
-      {page === "register" && (
-        <Register onRegister={handleAuth} goToLogin={() => setPage("login")} />
+    <>
+      {page !== "dashboard" && (
+        <div className="app">
+          <div className="brand">Micro Bank</div>
+          {page === "login" && (
+            <Login onLogin={handleAuth} goToRegister={() => setPage("register")} />
+          )}
+          {page === "register" && (
+            <Register onRegister={handleAuth} goToLogin={() => setPage("login")} />
+          )}
+        </div>
       )}
       {page === "dashboard" && accountId !== null && (
         <Dashboard accountId={accountId} initialBalance={balance} onLogout={handleLogout} />
       )}
-    </div>
+    </>
   );
 }

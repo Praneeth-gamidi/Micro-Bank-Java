@@ -23,11 +23,11 @@ export default function Dashboard({ accountId, initialBalance, onLogout }: Props
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [history, setHistory] = useState<Transaction[]>([]);
-  const [tab, setTab] = useState<"actions" | "history">("actions");
+  const [activeAction, setActiveAction] = useState<"deposit" | "withdraw" | "transfer">("deposit");
 
   useEffect(() => {
-    if (tab === "history") loadHistory();
-  }, [tab]);
+    loadHistory();
+  }, []);
 
   async function loadHistory() {
     try {
@@ -48,9 +48,11 @@ export default function Dashboard({ accountId, initialBalance, onLogout }: Props
   async function handleDeposit() {
     try {
       await deposit(accountId, parseFloat(amount));
-      setBalance(b => b + parseFloat(amount));
+      const amt = parseFloat(amount);
+      setBalance(b => b + amt);
       setMessage(`Deposited ₹${amount} successfully`);
       reset();
+      loadHistory();
     } catch (err: any) {
       setError(err.message);
     }
@@ -59,9 +61,11 @@ export default function Dashboard({ accountId, initialBalance, onLogout }: Props
   async function handleWithdraw() {
     try {
       await withdraw(accountId, parseFloat(amount), pin);
-      setBalance(b => b - parseFloat(amount));
+      const amt = parseFloat(amount);
+      setBalance(b => b - amt);
       setMessage(`Withdrew ₹${amount} successfully`);
       reset();
+      loadHistory();
     } catch (err: any) {
       setError(err.message);
     }
@@ -78,82 +82,145 @@ export default function Dashboard({ accountId, initialBalance, onLogout }: Props
       setBalance(b => b - amt);
       setMessage(`Transferred ₹${amount} successfully`);
       reset();
+      loadHistory();
     } catch (err: any) {
       setError(err.message);
     }
   }
 
+  const totalDeposited = history.filter(t => t.type === "DEPOSIT").reduce((s, t) => s + t.amount, 0);
+  const totalWithdrawn = history.filter(t => t.type === "WITHDRAW").reduce((s, t) => s + t.amount, 0);
+  const totalTransferred = history.filter(t => t.type === "TRANSFER").reduce((s, t) => s + t.amount, 0);
+
   return (
-    <div className="dashboard">
-      <div className="dashboard-header">
-        <div>
-          <p className="label">Account #{accountId}</p>
-          <h2 className="balance">₹{balance.toFixed(2)}</h2>
-          <p className="label">Current Balance</p>
-        </div>
+    <div className="db-page">
+      <div className="db-topbar">
+        <div className="db-brand">Micro Bank</div>
         <button className="logout-btn" onClick={onLogout}>Log out</button>
       </div>
 
-      <div className="tabs">
-        <button className={tab === "actions" ? "active" : ""} onClick={() => setTab("actions")}>Actions</button>
-        <button className={tab === "history" ? "active" : ""} onClick={() => setTab("history")}>History</button>
+      <div className="db-hero">
+        <div>
+          <p className="db-hero-label">Account #{accountId}</p>
+          <h1 className="db-hero-balance">₹{balance.toFixed(2)}</h1>
+          <p className="db-hero-label">Current Balance</p>
+        </div>
       </div>
 
-      {tab === "actions" && (
-        <div className="actions">
-          {message && <p className="success">{message}</p>}
-          {error && <p className="error">{error}</p>}
+      <div className="db-stats">
+        <div className="stat-card stat-green">
+          <p className="stat-label">Total Deposited</p>
+          <p className="stat-value">₹{totalDeposited.toFixed(2)}</p>
+        </div>
+        <div className="stat-card stat-red">
+          <p className="stat-label">Total Withdrawn</p>
+          <p className="stat-value">₹{totalWithdrawn.toFixed(2)}</p>
+        </div>
+        <div className="stat-card stat-blue">
+          <p className="stat-label">Total Transferred</p>
+          <p className="stat-value">₹{totalTransferred.toFixed(2)}</p>
+        </div>
+        <div className="stat-card stat-purple">
+          <p className="stat-label">Transactions</p>
+          <p className="stat-value">{history.length}</p>
+        </div>
+      </div>
 
-          <div className="input-row">
-            <input
-              type="number"
-              placeholder="Amount"
-              value={amount}
-              onChange={e => { setAmount(e.target.value); setMessage(""); setError(""); }}
-            />
-            <input
-              type="password"
-              placeholder="PIN"
-              value={pin}
-              onChange={e => { setPin(e.target.value); setMessage(""); setError(""); }}
-            />
-          </div>
+      <div className="db-main">
+        <div className="db-left">
+          <div className="panel">
+            <h3 className="panel-title">Quick Actions</h3>
 
-          <div className="action-buttons">
-            <button onClick={handleDeposit} disabled={!amount}>Deposit</button>
-            <button onClick={handleWithdraw} disabled={!amount || !pin}>Withdraw</button>
-          </div>
+            <div className="action-tabs">
+              {(["deposit", "withdraw", "transfer"] as const).map(a => (
+                <button
+                  key={a}
+                  className={activeAction === a ? "action-tab active" : "action-tab"}
+                  onClick={() => { setActiveAction(a); reset(); setMessage(""); }}
+                >
+                  {a.charAt(0).toUpperCase() + a.slice(1)}
+                </button>
+              ))}
+            </div>
 
-          <div className="transfer-section">
-            <p className="section-label">Transfer to another account</p>
-            <input
-              type="number"
-              placeholder="Receiver Account ID"
-              value={receiverId}
-              onChange={e => { setReceiverId(e.target.value); setMessage(""); setError(""); }}
-            />
-            <button onClick={handleTransfer} disabled={!amount || !pin || !receiverId}>Transfer</button>
+            {message && <p className="success">{message}</p>}
+            {error && <p className="error">{error}</p>}
+
+            <div className="action-form">
+              <label>Amount</label>
+              <input
+                type="number"
+                placeholder="Enter amount"
+                value={amount}
+                onChange={e => { setAmount(e.target.value); setMessage(""); setError(""); }}
+              />
+
+              {(activeAction === "withdraw" || activeAction === "transfer") && (
+                <>
+                  <label>PIN</label>
+                  <input
+                    type="password"
+                    placeholder="Enter your PIN"
+                    maxLength={4}
+                    value={pin}
+                    onChange={e => { setPin(e.target.value); setMessage(""); setError(""); }}
+                  />
+                </>
+              )}
+
+              {activeAction === "transfer" && (
+                <>
+                  <label>Receiver Account ID</label>
+                  <input
+                    type="number"
+                    placeholder="Enter receiver account ID"
+                    value={receiverId}
+                    onChange={e => { setReceiverId(e.target.value); setMessage(""); setError(""); }}
+                  />
+                </>
+              )}
+
+              <button
+                className="submit-btn"
+                onClick={activeAction === "deposit" ? handleDeposit : activeAction === "withdraw" ? handleWithdraw : handleTransfer}
+                disabled={
+                  !amount ||
+                  (activeAction !== "deposit" && !pin) ||
+                  (activeAction === "transfer" && !receiverId)
+                }
+              >
+                {activeAction.charAt(0).toUpperCase() + activeAction.slice(1)}
+              </button>
+            </div>
           </div>
         </div>
-      )}
 
-      {tab === "history" && (
-        <div className="history">
-          {history.length === 0 ? (
-            <p className="empty">No transactions yet</p>
-          ) : (
-            history.map(t => (
-              <div key={t.transactionId} className="txn-row">
-                <div>
-                  <span className={`txn-type ${t.type.toLowerCase()}`}>{t.type}</span>
-                  <span className="txn-date">{new Date(t.createdAt).toLocaleString()}</span>
-                </div>
-                <span className="txn-amount">₹{t.amount.toFixed(2)}</span>
+        <div className="db-right">
+          <div className="panel">
+            <h3 className="panel-title">Recent Transactions</h3>
+            {history.length === 0 ? (
+              <p className="empty">No transactions yet</p>
+            ) : (
+              <div className="txn-list">
+                {history.slice(0, 8).map(t => (
+                  <div key={t.transactionId} className="txn-row">
+                    <div className={`txn-icon ${t.type.toLowerCase()}`}>
+                      {t.type === "DEPOSIT" ? "↓" : t.type === "WITHDRAW" ? "↑" : "⇄"}
+                    </div>
+                    <div className="txn-info">
+                      <span className="txn-type-text">{t.type}</span>
+                      <span className="txn-date">{new Date(t.createdAt).toLocaleString()}</span>
+                    </div>
+                    <span className={`txn-amount ${t.type.toLowerCase()}`}>
+                      {t.type === "DEPOSIT" ? "+" : "-"}₹{t.amount.toFixed(2)}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))
-          )}
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
