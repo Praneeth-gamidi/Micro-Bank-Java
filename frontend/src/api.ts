@@ -1,4 +1,4 @@
-const BASE = "http://localhost:9090/api";
+const BASE = import.meta.env.VITE_API_URL || "http://localhost:9090/api";
 
 function authHeaders() {
   const token = localStorage.getItem("token");
